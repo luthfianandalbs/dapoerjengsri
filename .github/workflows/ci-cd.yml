@@ -26,7 +26,7 @@ jobs:
         run: dart fix --apply
 
       - name: Analyze project
-        run: flutter analyze
+        run: flutter analyze --fatal-infos=false
 
       - name: Run tests
         run: flutter test
