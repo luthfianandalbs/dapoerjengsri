@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "136656874312",
+    "project_id": "dapoerjengsri-aa037",
+    "storage_bucket": "dapoerjengsri-aa037.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:136656874312:android:a40ae6acf507015be0a17d",
+        "android_client_info": {
+          "package_name": "com.example.dapoerjengsri"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDj07I23QduU8hT5RImbS4k3xOgnKsFKgs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
