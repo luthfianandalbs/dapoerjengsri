@@ -55,9 +55,21 @@ RUN flutter pub get
 # Copy rest of the project
 COPY . .
 
-# Enable web and build APK and Web
+# Enable web, create signing files from secrets, and build APK and Web
 RUN flutter config --enable-web
-RUN flutter build apk --release
+
+RUN --mount=type=secret,id=KEYSTORE_BASE64 \
+    --mount=type=secret,id=STORE_PASSWORD \
+    --mount=type=secret,id=KEY_PASSWORD \
+    --mount=type=secret,id=KEY_ALIAS \
+    mkdir -p android && \
+    echo "$(cat /run/secrets/KEYSTORE_BASE64)" | base64 --decode > android/upload-keystore.jks && \
+    echo "storeFile=../upload-keystore.jks" > android/key.properties && \
+    echo "keyAlias=$(cat /run/secrets/KEY_ALIAS)" >> android/key.properties && \
+    echo "storePassword=$(cat /run/secrets/STORE_PASSWORD)" >> android/key.properties && \
+    echo "keyPassword=$(cat /run/secrets/KEY_PASSWORD)" >> android/key.properties && \
+    flutter build apk --release
+
 RUN flutter build web --release
 
 # Stage 2: Create the runtime image with a web server
