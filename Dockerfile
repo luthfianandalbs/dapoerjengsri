@@ -1,5 +1,5 @@
-# Stage 1: Setup Flutter and Android SDK
-FROM ubuntu:22.04 AS build
+# Stage 1: Setup Flutter, build web and APK
+FROM --platform=linux/amd64 ubuntu:22.04 AS build
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -24,8 +24,8 @@ ENV PATH="${FLUTTER_HOME}/bin:${PATH}"
 RUN git clone --depth 1 --branch ${FLUTTER_VERSION} \
     https://github.com/flutter/flutter.git ${FLUTTER_HOME} && \
     flutter doctor -v && \
-    flutter precache --android --linux && \
-    flutter config --enable-linux-desktop
+    flutter precache --android --web && \
+    flutter config --enable-web
 
 # Install Android SDK
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
@@ -39,7 +39,7 @@ RUN mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools && \
     rm commandlinetools-linux-9477386_latest.zip && \
     mv cmdline-tools latest && \
     yes | sdkmanager --licenses && \
-    sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;25.1.8937393"
+    sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
 # Configure Flutter to use Android SDK
 RUN flutter config --android-sdk ${ANDROID_SDK_ROOT} && \
@@ -55,23 +55,22 @@ RUN flutter pub get
 # Copy rest of the project
 COPY . .
 
-# Validate pubspec.yaml fonts exist (optional but recommended)
-RUN if grep -q "fonts:" pubspec.yaml; then \
-      echo "Checking font files..."; \
-      grep -A 20 "fonts:" pubspec.yaml | grep "asset:" | sed 's/.*asset: //' | sed 's/"//g' | while read font; do \
-        if [ ! -f "$font" ]; then \
-          echo "Warning: Font file not found: $font"; \
-        fi; \
-      done; \
-    fi
+# Enable web and build APK and Web
+RUN flutter config --enable-web
+RUN flutter build apk --release
+RUN flutter build web --release
 
-# Create gradle.properties to limit memory usage
-RUN mkdir -p android && \
-    echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError" > android/gradle.properties && \
-    echo "org.gradle.daemon=true" >> android/gradle.properties && \
-    echo "org.gradle.parallel=true" >> android/gradle.properties && \
-    echo "org.gradle.workers.max=4" >> android/gradle.properties && \
-    echo "android.useAndroidX=true" >> android/gradle.properties
+# Stage 2: Create the runtime image with a web server
+FROM nginx:1.25-alpine AS runtime
 
-# Build APK with optimized settings
-RUN flutter build apk --release --verbose
+# Copy the web build output from the build stage
+COPY --from=build /app/build/web /usr/share/nginx/html
+
+# Copy the APK from the build stage to a location for easy retrieval
+COPY --from=build /app/build/app/outputs/flutter-apk/app-release.apk /usr/share/nginx/html/app-release.apk
+
+# Expose port 80 for the web server
+EXPOSE 80
+
+# The nginx image will automatically start the server
+CMD ["nginx", "-g", "daemon off;"]
